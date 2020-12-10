@@ -1,86 +1,392 @@
 ---
 title: "Assignment 6"
 author: "Charles Lang"
-date: "11/16/2016"
+date: "12/1/2020"
 output: html_document
 ---
-#Addignment 6
 
-In this assignment you will be looking at data from a MOOC. It contains the following per-student variables:
-
-certified (yes/no) - Whether or not a student paid for the course  
-forum.posts (numeric) - How many forum posts a student made throughout the course  
-grade (numeric) - A student's average grade for the course exam  
-assignment (numeric) - A student's average grade for the course assignments  
-
-##Part I
-
-#Packages
 ```{r}
-library(rpart)
-```
-
-#Data
-```{r}
-#Upload the data sets MOOC1.csv and MOOC2.csv
-M1 <- read.csv("MOOC1.csv", header = TRUE)
-
-M2 <- 
+library(tidyverse)
+library(GGally)
 
 ```
 
-#Decision tree
+Instructions
+
+Task I
+You will be working in groups on a quantified student project
+Download the Sensor Kinetics Pro app to your iOS or Android device (or similar gyroscope measuring app)
+Split into subgroups with each subgroup investigating one measure available in the app
+
+
+
+
+Our awesome activity is as follows...
+  Go up the stairs, [speed]
+  while shouting, [audio]
+  while pressing on the screen [pressure]
+  while tossing and catching a ball 5 times 
+  What counts as ggood is doing it the fastest (least time)
+
+App: phyphox on the App Store https://apps.apple.com/us/app/phyphox/id1127319693
+
+
+Measure the following sensors:
+  Pressure - pressing on screen
+  Audio - audio scope
+  Elevator - speed
+
+
+Avg speed:
+  Berj Akian ba2629   ~5 seconds 
+  Fei Wang fw2347		  ~7 seconds 
+  Xiaojia Liu xl2958	~9 seconds
+  Guoliang Xu gx2150	~10 seconds
+  Jiacong Zhu jz3254	~10	seconds
+  Xijia Wang xw2653		~10 seconds 
+  Yingxin Xie yx2614 	~12 seconds
+
+
+
+Each subgroup should report back after 20min with what they have learned
+
+
+
+
+Task II
+In consultation with your group select a physical activity that: 
+a) can be measured using the app, 
+
+b) has a concrete, continuous, countable outcome and 
+
+c) some members of the group are experts and some are novices at - If you are looking for inspiration you can find previous student projects below.
+
+Collect measurements for all members of the group performing the task using the app
+
+Create a Github repo where you can store and share your data
 ```{r}
-#Using the rpart package generate a classification tree predicting certified from the other variables in the M1 data frame. Which variables should you use?
+#---- read in the data
+DF1 <- read.csv("stairsalldata1.csv")
 
-c.tree1 <- 
+#---- what do we have?...
+str(DF1)
+head(DF1)
+#summary(DF1)
 
-#Check the results from the classifcation tree using the printcp() command
+#---- na's please rise... https://sebastiansauer.github.io/sum-isna/
+DF1.is.na <- DF1 %>% 
+  summarise_all(funs(sum(is.na(.))))
+DF1.is.na
 
+sum(DF1.is.na)
 
-
-#Plot your tree
-
-post(c.tree1, file = "tree1.ps", title = "MOOC") #This creates a pdf image of the tree
+#---- drop rows that contain NA in any column... if needed based on results of previous command... not needed
+#DF2 <- na.omit(D1)
 
 ```
 
-##Part II
 
-#The heading "xerror" in the printcp table stands for "cross validation error", it is the error rate of assigning students to certified/uncertified of the model averaged over 10-fold cross validation. CP stands for "Complexity Parameter" and represents the cost to error for adding a node to the tree. Notice it decreases as we add more nodes to the tree which implies that more nodes make better predictions. However, more nodes also mean that we may be making the model less generalizable, this is known as "overfitting".
 
-#If we are worried about overfitting we can remove nodes form our tree using the prune() command, setting cp to the CP value from the table that corresponds to the number of nodes we want the tree to terminate at. Let's set it to two nodes.
-
+Using K-means, can you identify the novices from the experts using only the app data?
 ```{r}
-c.tree2 <- prune(c.tree1, cp = )#Set cp to the level at which you want the tree to end
+#--- Clustering, for fun
 
-#Visualize this tree and compare it to the one you generated earlier
+#--- what class is the data
+class(DF1)
 
-post(c.tree2, file = "tree2.ps", title = "MOOC") #This creates a pdf image of the tree
+
+#--- a little more cleanup
+DF2 <- DF1[,3:5]
+rownames(DF2) <- DF1[,1]
+
+ 
+#--- convert to matrix, if needed
+DF2.matrix <- as.matrix(DF2)
+
+ 
+#--- how many unique rows... this is the upper limit to k values
+dim(unique(DF2.matrix))
+
+
+#--- calculate Total within-cluster sum of squares 
+DF2.tot_withinss <- map_dbl(1:5,  function(k){
+  model <- kmeans(DF2.matrix, centers = k)
+  model$tot.withinss
+})
+
+ 
+#--- Generate a data frame containing both k and tot_withinss
+DF2.elbow_df <- data.frame(
+  k = 1:5,
+  tot_withinss = DF2.tot_withinss
+)
+
+
+#--- Plot the elbow plot of K values and tot_withinss
+ggplot(DF2.elbow_df, aes(x = k, y = tot_withinss)) +
+  geom_line() +
+  scale_x_continuous(breaks = 1:5)
+ 
+
+#--- the elbow plot looks like 2 groups... maybe 3 groups for good measure
+ 
+
+#--- kmeans the datatable into 2 groups 
+DF2.groups <- kmeans(DF2.matrix, centers = 2)
+ 
+DF2.clustered <- data.frame(DF2, cluster = as.factor(DF2.groups$cluster))
+
+
+DF2.clustered <- cbind(DF2.clustered,time = DF1[,2])
+
+
+#--- Can you identify the novices from the experts using only the app data? 
+#--- pressure: generally, higher pressure value was associated with slowest speed
+#--- audio: generally, lower audio value was associated with slower speed
+
 ```
 
-#Now use both the original tree and the pruned tree to make predictions about the the students in the second data set. Which tree has a lower error rate?
+
+Visualize your results using ggplot2
 
 ```{r}
-M2$predict1 <- predict(c.tree1, M2, type = "class")
+#--- Let's take a look
 
-M2$predict2 <- predict(c.tree2, M2, type = "class")
+DF3.clustered <- DF2.clustered
+DF3.clustered$cluster <- as.numeric(DF3.clustered$cluster)
 
-table(M2$certified, M2$predict1)
-
-table(M2$certified, M2$predict2)
+pairs(DF3.clustered)
+  
+ggpairs(DF3.clustered,
+          progress = FALSE,
+          lower = list(continuous = wrap("points", alpha = 0.3, size=0.2)))
+  
+ggpairs(DF3.clustered,
+          progress = FALSE,
+          lower = list(continuous = wrap("smooth", alpha = 0.3, size=0.2)))
 
 ```
 
-##Part III
 
-Choose a data file from the (University of Michigan Open Data Set)[https://github.com/bkoester/PLA/tree/master/data]. Choose an outcome variable that you would like to predict. Build two models that predict that outcome from the other variables. The first model should use raw variables, the second should feature select or feature extract variables from the data. Which model is better according to the cross validation metrics?
 
+Task III
+Devise five questions on a five point Likert scale that ask members of your group about their experience with your chosen task
 ```{r}
+
+#--- Question 1: the task was... fun
+#--- Question 2: the task was... easy
+#--- Question 3: the task was... confusing
+#--- Question 4: the task was... fast
+#--- Question 5: the task was... embarrassing
+
+#--- (1) Strongly disagree; (2) Disagree; (3) Neither agree nor disagree; (4) Agree; (5) Strongly agree
+```
+
+
+
+Collect data from all members of your group
+```{r}
+#---- read in the data
+SV1 <- read.csv("survey1.csv")
+
+#---- what do we have?...
+str(SV1)
+head(SV1)
+#summary(DF1)
+
+#---- na's please rise... https://sebastiansauer.github.io/sum-isna/
+SV1.is.na <- DF1 %>% 
+  summarise_all(funs(sum(is.na(.))))
+SV1.is.na
+
+sum(SV1.is.na)
+
+#---- drop rows that contain NA in any column... if needed based on results of previous command... not needed
+#SV2 <- na.omit(SV1)
+```
+
+Run a PCA analysis on the data
+```{r}
+
+#--- commence dimension reduction
+SV1.pca <- prcomp(SV1[2:6], scale. = TRUE, center = TRUE)
+
+SV1.pca$sdev
+
+SV1.pca$sdev^2
+
+summary(SV1.pca)
+
+plot(SV1.pca, type = "lines")
+
+biplot(SV1.pca)
+
+ggbiplot(SV1.pca)
+
+#--- Now print out the loadings for the components you generated:
+
+SV1.loadings <- abs(SV1.pca$rotation)
+
+SV1.loadings
+
+
+```
+
+What does PC1 represent in your analysis?
+```{r}
+
+#PC1 represents the greatest diversity of the survey response data.... 0 points
+
+#PC1 represents the following proportionate combination of survey responses (absolute value of the rotation values >> loadings)...0 points
+#Q4 0.5797535
+#Q2 0.5755824
+#Q1 0.5517591
+#Q5 0.1261263
+#Q3 0.1106564
+
+#PC1 represents ~47% of the total variance in the data... 0 points
+
+
+
+#PC1 has a disproportionate representation of questions 4, 2, 1 
+
+
+
+#The similarity in the proportional representation of questions 4, 2, 1 represents a commonality of the theme of those questions. 
+
+#--- it would seem these three questions have a common theme of 'joy', 'positive', or 'satisfying' theme... thus they would be answered similarly
+#--- Question 4: the task was... fast
+#--- Question 2: the task was... easy
+#--- Question 1: the task was...fun
+
+
+
+#The similarity in the proportional representation of questions 5 and 3 represents a commonality of the theme of those questions as well. 
+
+#--- it would seem these three questions have a theme of 'not-joyful', 'negative', or 'gloomy' theme... thus they would be answered similarly
+#--- Question 5: the task was... embarrassing
+#--- Question 3: the task was... confusing
+
+
+#--- so neat that PC analysis found those thematic relationships between the questions and the answers!!!!
+
+
+
+
+```
+
+Visualize the PC1 results for each member of your group
+```{r}
+#--- create a dataframe that brings together person name, PC1, and PC2... (and round those pesky long PC values to 4 places after the decimal)
+SV2 <- as.data.frame(cbind(person = SV1$Person, 
+                           PC1 = round(SV1.pca$x[,1],4), 
+                           PC2 = round(SV1.pca$x[,2],4)
+                           )
+                     )
+
+#--- Thee Oh Sees - Ugly Man ♫...
+plot(SV2[,2])
+
+
+#--- Can we make a better graph? Yes we can! 
+
+#--- turns out the PC values are stored as character strings... and so they don't sort numerically... we can fix this by sorting the whole dataframe as if PC1 was a number... and then adding a column that has the sort order... we'll use that later, muahahaha
+SV2 <- SV2[order(as.numeric(SV2$PC1), decreasing = TRUE),]
+SV2$sort <- 1:7
+
+
+#--- Mona Lisa... Many dreams have been brought to your doorstep ♫...
+x <- reorder(SV2$person,SV2$sort)
+y <- as.numeric(SV2$PC1)
+
+ggplot(SV2, aes(x, y, label = x, color = x)) +
+        geom_point()  +
+        geom_text(aes(label = y),vjust = -.5, size = 3, fontface = 4) +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+        ggtitle("PC1 for all survey respondents") +
+        xlab("Survey Respondents") +
+        ylab("PC1") +
+        theme(legend.position = "none") + 
+        geom_hline(yintercept = 0, linetype = "dotted")
+
+
 
 ```
 
 
-### To Submit Your Assignment
 
-Please submit your assignment by first "knitting" your RMarkdown document into an html file and then commit, push and pull request both the RMarkdown file and the html file.
+Task IV
+If you could only choose one thing to predict the score for each member of your group (raw data variable, a cluster or a PC) what would it be and why?
+```{r}
+
+
+#---correlate the pc values to the activity 
+#---bring together... SV1.pca$x[SV2]...  cluster membership[DF2.clustered]... 5 survey measures[SV1], time and sensor measures[DF1]
+
+E1 <- as.data.frame(cbind(person = SV1$Person,
+                          PC1 = round(SV1.pca$x[,1],4), 
+                          cluster = as.numeric(DF2.clustered$cluster),
+                          SV1[,2:6],
+                          DF1[,2:5])
+                     )
+
+#---add a sort of PC1 
+E2 <- E1[order(as.numeric(E1$PC1), decreasing = TRUE),]
+E2$PC1sort <- 1:7
+
+
+
+#---view a ggpairs correlation 
+ggpairs(E2[,c(2,3,9)], progress = FALSE)
+ggpairs(E2[,4:12], progress = FALSE)
+
+
+
+
+#---choose one thing to predict the score for each member of your group....
+#---the variable with the greatest positive correlation with greater Time (our goal is less time) is PC1... a positive correlation of 0.703
+#---the variable with the greatest negative correlation with a greater Time (our goal is less time) is Question4 "the task was... fast"... a negative correlation of -0.764
+
+
+
+
+
+```
+
+Create a visualization that supports your conclusion
+```{r}
+
+#---see ggpairs plots above
+
+
+```
+
+Based on your conclusion devise an intervention that would help novice members of your group improve their performance
+```{r}
+
+
+#---since neither question 4 or PC1 can be directly controlled to change the performance...
+#---the next best thing is to look at the sensor data... 
+#---pressure was a negative correlation of -.442 with greater time (our goal is less time)
+#---an intervention might be to tell participants to 'not push so hard on the sensor while trying to move more quickly up the stairs' 
+
+
+```
+
+
+
+Task V
+Submit a link to your Github repo containing your data, code, visualizations and conclusions to charles.lang@tc.columbia.edu by 5pm EDT 12/14/20.
+
+
+```{r}
+
+#--- this assignment was ggreat... learned a lot!!
+#--- here's our shared doc with our plan  
+#--- https://docs.google.com/document/d/1jyhde406-YOxZl_-Smd3LRbg1BhcxnSQfl4cUJU65iQ/edit?usp=sharing
+
+```
+
+
+ggood luck!
+
